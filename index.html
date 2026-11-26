@@ -1196,7 +1196,7 @@ function renderShifts() {
   });
 
   $('#v-shifts').innerHTML = `
-    <h1 class="title"><span>I tuoi</span><br>turni</h1>
+    <h1 class="title"><span>I tuoi</span> turni</h1>
     <section class="card">
       <div class="c-h" style="margin-bottom:16px"><h3 class="c-t">${monthLong(ym)}</h3>
         <div class="lg" style="justify-content:flex-end;color:var(--mu)"><span><i style="background:#fff"></i>Normale</span><span><i style="background:var(--lime)"></i>Domenica</span><span><i style="background:var(--pink)"></i>Festivo</span></div></div>
@@ -1265,7 +1265,7 @@ function runway(r, ym) {
   const lg = parts.map(([n, v, col]) => `<span class="${v > 0.005 ? '' : 'off'}"><i style="background:${col}"></i>${n}<b>${eur0(v)}</b></span>`).join('');
   const ded = r.inps + r.irpef, base = r.netto + ded || 1, pN = Math.round(r.netto / base * 100);
   return `<section class="card c-lime run">
-    <div class="run-h"><button class="circ l2" data-act="month" data-d="-1" aria-label="Mese precedente">${IC.left}</button><h3>Dove vanno i soldi</h3><button class="circ l2" data-act="month" data-d="1" aria-label="Mese successivo">${IC.right}</button></div>
+    <div class="run-h"><button class="circ l2" data-act="month" data-d="-1" aria-label="Mese precedente">${IC.left}</button><h3>${monthName(ym)}</h3><button class="circ l2" data-act="month" data-d="1" aria-label="Mese successivo">${IC.right}</button></div>
     <svg class="ring" viewBox="0 0 300 300" role="img" aria-label="Netto ${eur(r.netto)}, mance ${eur(r.tips)}, INPS ${eur(r.inps)}, IRPEF ${eur(r.irpef)}">${g}</svg>
     <div class="run-lg num">${lg}</div>
     <div class="wpanel">
@@ -1333,7 +1333,7 @@ function renderStats() {
   const hb = (l, v, c, i) => `<div class="hbar"><div class="hbar-top"><span>${l}</span><b class="num">${hFmt(v)}</b></div><div class="hbar-track"><i style="width:${v / hmax * 100}%;background:${c};animation-delay:${i * .07}s"></i></div></div>`;
 
   $('#v-stats').innerHTML = `
-    <h1 class="title"><span>Guadagni</span><br>mese per mese</h1>
+    <h1 class="title"><span>Guadagni di</span><br>${monthName(ym).toLowerCase()}</h1>
     <div class="rng">${[['3', '3 mesi'], ['6', '6 mesi'], ['12', '12 mesi'], ['year', 'Anno ' + ym.slice(0, 4)]].map(([k, l]) => `<button data-act="range" data-r="${k}" class="${ui.range === k ? 'on' : ''}">${l}</button>`).join('')}</div>
     <div class="lg" style="color:#ddd"><span><i style="background:var(--pink)"></i>Mance</span><span><i style="background:var(--lime)"></i>Trattenute</span><span><i style="background:var(--green);box-shadow:inset 0 0 0 1px #2c9672"></i>Netto</span><span><i style="background:#fff"></i>Ore</span></div>
     ${mrr(months)}
@@ -1376,7 +1376,7 @@ const BONUS_OPTS = [['tradizionale', 'Tradizionale', 'Giorni lavorati × valore 
 function renderSettings() {
   const st = settings;
   $('#v-settings').innerHTML = `
-    <h1 class="title"><span>Il tuo</span><br>cedolino</h1>
+    <h1 class="title"><span>Il tuo</span> cedolino</h1>
     <section class="sect">
       <div class="sect-t">${ico('money')}Retribuzione</div>
       <div class="grid2">${numField('hourly', 'Paga oraria base', '€')}${numField('divisor', 'Divisore ore')}</div>
@@ -1616,6 +1616,19 @@ function openSheet(s) {
   updatePreview();
   $('#scrim').classList.add('on'); $('#sheet').classList.add('on'); $('#sheet').scrollTop = 0; setModal();
 }
+let lockY = null;
+function syncScrollLock() {
+  const open = ['#sheet', '#picker', '#dialog', '#auth'].some(s => { const e = $(s); return e && e.classList.contains('on'); }), b = document.body;
+  if (open && lockY === null) {
+    lockY = scrollY;
+    Object.assign(b.style, { position: 'fixed', top: -lockY + 'px', left: '0', right: '0', width: '100%' });
+  } else if (!open && lockY !== null) {
+    const y = lockY; lockY = null;
+    Object.assign(b.style, { position: '', top: '', left: '', right: '', width: '' });
+    scrollTo({ top: y, behavior: 'instant' });
+  }
+}
+{ const mo = new MutationObserver(syncScrollLock); ['#sheet', '#picker', '#dialog', '#auth'].forEach(s => { const e = $(s); if (e) mo.observe(e, { attributes: true, attributeFilter: ['class'] }); }); }
 function setModal() {
   const sheet = $('#sheet').classList.contains('on'), pick = $('#picker').classList.contains('on'), b = document.body;
   if ((sheet || pick) && !b.classList.contains('modal')) $('.app').style.transformOrigin = '50% ' + (scrollY + innerHeight * .45) + 'px';
