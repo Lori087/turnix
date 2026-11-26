@@ -1553,7 +1553,7 @@ function renderPicker() {
   }
   if (c.kind === 'time') {
     const [H, M] = (pk.v || '19:00').split(':').map(Number); pk.h = H; pk.m = M;
-    const mins = Array.from({ length: 12 }, (_, i) => i * 5); if (!mins.includes(M)) { mins.push(M); mins.sort((a, b) => a - b); }
+    const mins = Array.from({ length: 60 }, (_, i) => i);
     const col = (name, arr, cur) => `<div class="pk-wheel" data-wheel="${name}">${arr.map(x => `<button data-pk="wheel" data-v="${x}" class="${x === cur ? 'cur' : ''}">${pad(x)}</button>`).join('')}</div>`;
     el.innerHTML = head(`${pad(H)}:${pad(M)}`) + `<div class="pk-wheels"><div class="pk-band"></div>${col('h', Array.from({ length: 24 }, (_, i) => i), H)}<span class="pk-colon">:</span>${col('m', mins, M)}</div>
       <div class="pk-foot"><button class="btn btn-ghost" data-pk="close">Annulla</button><button class="btn btn-lime" data-pk="ok">Conferma</button></div>`;
