@@ -183,6 +183,20 @@ button{cursor:pointer;border:0;background:none;padding:0}
 .sd b{font-size:19px;font-weight:700}
 .sd span{font-size:10px;font-weight:700;text-transform:uppercase;margin-top:3px;opacity:.65;letter-spacing:.04em}
 .sd.domenica{background:var(--lime)}.sd.festivo{background:var(--pink)}
+.sd.pln{background:transparent;color:#fff;outline:1.6px dashed rgba(255,255,255,.7);outline-offset:-2px}
+.sd.pln.domenica{color:var(--lime);outline-color:var(--lime)}
+.sd.pln.festivo{color:var(--pink);outline-color:var(--pink)}
+.srow.pl .stime{opacity:.85}
+.srow.due .sd.pln{outline-color:var(--lime);color:var(--lime)}
+.sv-pl{color:var(--mu);display:grid;place-items:center;padding-right:4px}
+.sv-pl .ic{width:20px;height:20px}
+.sv-cf{background:var(--lime);color:var(--ink);font-size:13px;font-weight:700;border-radius:99px;padding:8px 13px;flex:none}
+.cf-hint{margin:-6px 0 12px!important}
+.cf-note{display:flex;gap:10px;align-items:flex-start;background:rgba(214,240,40,.1);color:var(--lime);border-radius:20px;padding:12px 14px;font-size:13.5px;font-weight:600;margin:0 0 16px;line-height:1.35}
+.cf-note .ic{width:18px;height:18px;flex:none;margin-top:1px}
+.preview.plan{background:transparent;color:#fff;outline:1.6px dashed rgba(255,255,255,.55);outline-offset:-2px}
+.preview.plan .pv-r b{font-size:17px}
+.btn.nf{flex:none;padding:0 18px;font-size:14.5px}
 .sd.plan{background:transparent;color:#fff;box-shadow:inset 0 0 0 1.5px #fff}
 .sd.plan.domenica{color:var(--lime);box-shadow:inset 0 0 0 1.5px var(--lime)}
 .sd.plan.festivo{color:var(--pink);box-shadow:inset 0 0 0 1.5px var(--pink)}
@@ -223,6 +237,10 @@ details[open] .chev{transform:rotate(180deg)}
 .cal-d.t-normale{background:#fff;color:var(--ink)}
 .cal-d.t-domenica{background:var(--lime);color:var(--ink)}
 .cal-d.t-festivo{background:var(--pink);color:var(--ink)}
+.cal-d.pln{background:transparent!important;color:#fff;box-shadow:none;outline:1.6px dashed rgba(255,255,255,.75);outline-offset:-2px}
+.cal-d.pln.t-domenica{color:var(--lime);outline-color:var(--lime)}
+.cal-d.pln.t-festivo{color:var(--pink);outline-color:var(--pink)}
+.cal-d.pln.due{outline-color:var(--lime);color:var(--lime)}
 .cal-d.fut{background:transparent!important;color:#fff;box-shadow:inset 0 0 0 1.5px #fff}
 .cal-d.fut.t-domenica{color:var(--lime);box-shadow:inset 0 0 0 1.5px var(--lime)}
 .cal-d.fut.t-festivo{color:var(--pink);box-shadow:inset 0 0 0 1.5px var(--pink)}
@@ -284,6 +302,15 @@ details[open] .chev{transform:rotate(180deg)}
 
 /* obiettivo (card rosa) */
 .gauge{display:block;width:100%;margin-top:6px}
+.p1{font-size:.62em;font-weight:700;color:var(--lime);margin-left:3px;vertical-align:super;line-height:0}
+.nd{display:none;background:var(--lime);color:var(--ink);font-size:11px;font-weight:700;border-radius:99px;padding:2px 8px;margin-left:6px;vertical-align:1px}
+.nd.on{display:inline-block}
+.ovn{display:none;gap:10px;align-items:flex-start;background:rgba(214,240,40,.1);color:#fff;border-radius:20px;padding:12px 14px;font-size:13.5px;font-weight:500;margin:-4px 0 16px;line-height:1.4}
+.ovn.on{display:flex}
+.ovn b{color:var(--lime);font-weight:700}
+.ovn .ic{width:18px;height:18px;flex:none;margin-top:1px;color:var(--lime)}
+.pk-nd{font-size:13px;font-weight:600;color:var(--mu);margin-top:4px}
+.pk-nd.on{color:var(--lime)}
 .gl-msg{display:flex;align-items:center;justify-content:center;gap:8px;margin:6px auto 0;width:fit-content;background:rgba(13,13,13,.08);border-radius:99px;padding:10px 16px;font-size:14.5px;font-weight:600}
 .gl-msg.ok{background:var(--ink);color:var(--pink)}
 .gl-msg .ic{width:18px;height:18px}
@@ -826,9 +853,11 @@ function loadShifts() {
 }
 
 let settings = loadSettings();
-let shifts = loadShifts();
+const isPlan = s => String(s && s.id || '').startsWith('plan-');
+let shifts = loadShifts(), plans = shifts.filter(isPlan);
+shifts = shifts.filter(s => !isPlan(s));
 const saveSettings = () => { localStorage.setItem(K_SET, JSON.stringify(settings)); cloudDirty(); };
-const saveShifts = () => { localStorage.setItem(K_SH, JSON.stringify(shifts)); cloudDirty(); };
+const saveShifts = () => { localStorage.setItem(K_SH, JSON.stringify(shifts.concat(plans))); cloudDirty(); };
 
 /* ===================== Utilità ===================== */
 const $ = (s, r = document) => r.querySelector(s);
@@ -985,10 +1014,21 @@ function netShares(ym) {
 }
 
 /* ===================== Componenti ===================== */
+function planRow(s) {
+  const { hours } = shiftHours(s), d = parseDate(s.date), due = planDue(s);
+  const time = s.start && s.end ? `${s.start} – ${s.end}${overnight(s) ? '<sup class="p1">+1</sup>' : ''}` : `${hFmt(hours)}`;
+  const meta = [due ? 'Da confermare' : 'In programma', s.type !== 'normale' ? TYPES[s.type].label : '', hFmt(hours), s.note ? esc(s.note) : ''].filter(Boolean).join(' · ');
+  return `<button class="srow pl ${due ? 'due' : ''}" data-act="edit" data-id="${s.id}">
+    <span class="sd pln ${s.type}"><b>${d.getDate()}</b><span>${wdShort(s.date)}</span></span>
+    <span class="sm"><span class="stime num">${time}</span><span class="smeta">${meta}</span></span>
+    ${due ? '<span class="sv-cf">Conferma</span>' : `<span class="sv-pl">${ico('clock')}</span>`}
+  </button>`;
+}
 function shiftRow(s) {
+  if (isPlan(s)) return planRow(s);
   const { hours, night } = shiftHours(s);
   const m = marginal(s, s.id), d = parseDate(s.date), planned = s.date > todayStr();
-  const time = s.start && s.end ? `${s.start} – ${s.end}` : `${hFmt(hours)} lavorate`;
+  const time = s.start && s.end ? `${s.start} – ${s.end}${overnight(s) ? '<sup class="p1">+1</sup>' : ''}` : `${hFmt(hours)} lavorate`;
   const meta = [s.type !== 'normale' ? TYPES[s.type].label : '', hFmt(hours), night ? `${hFmt(night)} nott.` : '', s.breakMin ? `pausa ${s.breakMin}′` : '', s.note ? esc(s.note) : ''].filter(Boolean).join(' · ');
   return `<button class="srow" data-act="edit" data-id="${s.id}">
     <span class="sd ${s.type} ${planned ? 'plan' : ''}"><b>${d.getDate()}</b><span>${wdShort(s.date)}</span></span>
@@ -1085,11 +1125,25 @@ function cumChart(ym) {
   return `<svg class="spark" viewBox="0 0 ${W} ${H}" role="img" aria-label="Guadagno cumulato nel mese">${g}</svg>`;
 }
 
+/* turni in programma: stessi dati di un turno, id "plan-…", tenuti fuori da shifts → fuori da ogni calcolo */
+const allShifts = () => shifts.concat(plans);
+const setAllShifts = list => { plans = list.filter(isPlan); shifts = list.filter(s => !isPlan(s)); };
+function planDue(s) {
+  const today = todayStr();
+  if (s.date < today) return true;
+  if (s.date > today || !s.start || !s.end || s.end <= s.start) return false;
+  const n = new Date(); return `${pad(n.getHours())}:${pad(n.getMinutes())}` >= s.end;
+}
+const plansOf = ym => plans.filter(s => ymOf(s.date) === ym);
+const sortSh = l => l.sort((a, b) => (a.date + a.start).localeCompare(b.date + b.start));
+const overnight = s => !!(s.start && s.end && s.end <= s.start);
+const nextDayLbl = ds => { const d = parseDate(ds); d.setDate(d.getDate() + 1); return d.toLocaleDateString('it-IT', { weekday: 'long', day: 'numeric' }); };
+const dayLbl = ds => parseDate(ds).toLocaleDateString('it-IT', { weekday: 'long', day: 'numeric' });
 function renderHome() {
   const ym = ui.month, r = stats(ym), list = shiftsOf(ym), state = monthState(ym), today = todayStr();
   const done = computeMonth(list.filter(s => s.date <= today), ym);
   const goalVal = settings.goalWithTips ? r.total : r.netto, pct = settings.goal ? goalVal / settings.goal : 0;
-  const upcoming = shifts.filter(s => s.date >= today).sort((a, b) => (a.date + a.start).localeCompare(b.date + b.start)).slice(0, 3);
+  const upcoming = allShifts().filter(s => s.date >= today && !(isPlan(s) && planDue(s))).sort((a, b) => (a.date + a.start).localeCompare(b.date + b.start)).slice(0, 3);
   const showList = state === 'current' && upcoming.length ? upcoming : state === 'future' ? list.slice(0, 3) : list.slice().reverse().slice(0, 3);
   const listTitle = state === 'current' && upcoming.length ? '<span>Prossimi</span> turni' : state === 'future' ? '<span>Turni</span> pianificati' : '<span>Ultimi</span> turni';
   const nm = (settings.name || '').trim();
@@ -1097,6 +1151,7 @@ function renderHome() {
   $('#v-home').innerHTML = `
     <h1 class="title">${nm ? `<span>${greeting()}</span><br>${esc(nm)}!` : `<span>${greeting()},</span><br>ecco ${monthName(ym).toLowerCase()}`}</h1>
 
+    ${(() => { const due = sortSh(plans.filter(planDue)); return due.length ? `<div class="sec-h" style="margin-top:0"><h3><span>Da</span> confermare</h3></div><p class="c-s cf-hint">Turni in programma già passati: tocca, sistema gli orari reali e conferma.</p>${due.map(planRow).join('')}<div style="height:14px"></div>` : ''; })()}
     <section class="card c-grad" id="weekCard">${weekCard(ym)}</section>
 
     <section class="card c-green">
@@ -1186,7 +1241,8 @@ function renderShifts() {
   const ym = ui.month, list = shiftsOf(ym), r = stats(ym), today = todayStr();
   const [y, m] = ym.split('-').map(Number);
   const first = (new Date(y, m - 1, 1).getDay() + 6) % 7, dim = daysIn(ym), byDate = {};
-  list.forEach(s => (byDate[s.date] = byDate[s.date] || []).push(s));
+  const pl = plansOf(ym), every = sortSh(list.concat(pl));
+  every.forEach(s => (byDate[s.date] = byDate[s.date] || []).push(s));
   let cal = ['L', 'M', 'M', 'G', 'V', 'S', 'D'].map(d => `<div class="cal-h">${d}</div>`).join('');
   for (let i = 0; i < first; i++) cal += '<div class="cal-d out"></div>';
   for (let d = 1; d <= dim; d++) {
@@ -1194,13 +1250,14 @@ function renderShifts() {
     let cls = '', lbl = '';
     if (ss) {
       const t = ss.some(s => s.type === 'festivo') ? 'festivo' : ss.some(s => s.type === 'domenica') ? 'domenica' : 'normale';
-      cls = `t-${t} ${ds > today ? 'fut' : ''}`;
+      const onlyPlan = ss.every(isPlan);
+      cls = `t-${t} ${onlyPlan ? 'pln' + (ss.some(planDue) ? ' due' : '') : ds > today ? 'fut' : ''}`;
       lbl = `<small>${n2(ss.reduce((a, s) => a + shiftHours(s).hours, 0))}h</small>`;
     }
-    cal += `<button class="cal-d ${cls} ${ds === today ? 'today' : ''} ${hol ? 'hol' : ''}" data-act="day" data-date="${ds}" aria-label="${d} ${monthName(ym)}${hol ? ', ' + hol : ''}${ss ? ', turno registrato' : ''}">${d}${lbl}</button>`;
+    cal += `<button class="cal-d ${cls} ${ds === today ? 'today' : ''} ${hol ? 'hol' : ''}" data-act="day" data-date="${ds}" aria-label="${d} ${monthName(ym)}${hol ? ', ' + hol : ''}${ss ? (ss.every(isPlan) ? ', turno in programma' : ', turno registrato') : ''}">${d}${lbl}</button>`;
   }
   const groups = [];
-  list.forEach(s => {
+  every.forEach(s => {
     const d = parseDate(s.date), mon = new Date(d); mon.setDate(d.getDate() - (d.getDay() + 6) % 7);
     const key = dateStr(mon); let g = groups.find(g => g.key === key); if (!g) groups.push(g = { key, items: [] }); g.items.push(s);
   });
@@ -1211,7 +1268,7 @@ function renderShifts() {
       <div class="c-h" style="margin-bottom:16px"><h3 class="c-t">${monthLong(ym)}</h3>
         <div class="lg" style="justify-content:flex-end;color:var(--mu)"><span><i style="background:#fff"></i>Normale</span><span><i style="background:var(--lime)"></i>Domenica</span><span><i style="background:var(--pink)"></i>Festivo</span></div></div>
       <div class="cal">${cal}</div>
-      <p class="c-s" style="margin-top:14px;text-align:center">Pieno = lavorato · Contorno = pianificato · Tocca un giorno per aggiungere</p>
+      <p class="c-s" style="margin-top:14px;text-align:center">Pieno = fatto · Tratteggiato = in programma · Tocca un giorno per aggiungere</p>
     </section>
     <div class="tiles num">
       <div class="tile l"><small>Turni</small><b>${r.count}</b></div>
@@ -1220,8 +1277,8 @@ function renderShifts() {
     </div>
     ${groups.length ? groups.map(g => {
       const end = parseDate(g.key); end.setDate(end.getDate() + 6);
-      const tot = g.items.reduce((a, s) => a + shiftHours(s).hours, 0), sYm = g.key.slice(0, 7), eYm = dateStr(end).slice(0, 7);
-      return `<div class="grp"><span>${parseDate(g.key).getDate()}${sYm !== eYm ? ' ' + monthShort(sYm) : ''} – ${end.getDate()} ${monthShort(eYm)}</span><span class="num">${hFmt(tot)}</span></div>${g.items.map(shiftRow).join('')}`;
+      const tot = g.items.filter(s => !isPlan(s)).reduce((a, s) => a + shiftHours(s).hours, 0), sYm = g.key.slice(0, 7), eYm = dateStr(end).slice(0, 7);
+      return `<div class="grp"><span>${parseDate(g.key).getDate()}${sYm !== eYm ? ' ' + monthShort(sYm) : ''} – ${end.getDate()} ${monthShort(eYm)}</span><span class="num">${tot ? hFmt(tot) : ''}</span></div>${g.items.map(shiftRow).join('')}`;
     }).join('') : `<div class="empty" style="margin-top:12px">${ico('calendar-plus')}<b>Nessun turno in ${monthName(ym).toLowerCase()}</b>Tocca un giorno del calendario o il + in alto.</div>`}`;
 }
 
@@ -1506,6 +1563,11 @@ function setPick(id, v, fire = true) {
   if (fire) { inp.dispatchEvent(new Event('input', { bubbles: true })); inp.dispatchEvent(new Event('change', { bubbles: true })); }
 }
 let pk = null;
+function pkNextDay() {
+  const n = $('#pkNd'); if (!n || !pk || !draft) return;
+  const e = `${pad(pk.h)}:${pad(pk.m)}`, on = !!(draft.start && e <= draft.start);
+  n.classList.toggle('on', on); n.textContent = on ? `${cap(nextDayLbl(draft.date))} · giorno dopo` : `${cap(dayLbl(draft.date))}`;
+}
 function openPicker(id) {
   const c = pickCfg[id], v = $('#' + id).value;
   pk = { id, c, v, view: v ? (c.kind === 'date' ? ymOf(v) : c.kind === 'month' ? v.slice(0, 4) : null) : null };
@@ -1528,7 +1590,7 @@ function renderPicker() {
   const nav = `<div class="pk-nav"><button data-pk="prev" aria-label="Precedente">${IC.left}</button><button data-pk="next" aria-label="Successivo">${IC.right}</button></div>`;
   if (c.kind === 'date') {
     const ym = pk.view, lead = (parseDate(ym + '-01').getDay() + 6) % 7, n = daysIn(ym), today = todayStr();
-    const has = new Set(shifts.filter(s => ymOf(s.date) === ym).map(s => s.date));
+    const has = new Set(allShifts().filter(s => ymOf(s.date) === ym).map(s => s.date));
     let cells = '';
     for (let i = 0; i < lead; i++) cells += '<span class="pk-day out"></span>';
     for (let d = 1; d <= n; d++) {
@@ -1542,7 +1604,7 @@ function renderPicker() {
       <div class="pk-foot"><button class="btn btn-ghost" data-pk="today">Oggi</button><button class="btn btn-ghost" data-pk="close">Annulla</button></div>`;
   }
   if (c.kind === 'month') {
-    const y = pk.view, now = ymOf(todayStr()), has = new Set(shifts.map(s => ymOf(s.date)));
+    const y = pk.view, now = ymOf(todayStr()), has = new Set(allShifts().map(s => ymOf(s.date)));
     const months = Array.from({ length: 12 }, (_, i) => `${y}-${pad(i + 1)}`);
     el.innerHTML = head(y, nav) + `<div class="pk-months">${months.map(m => `<button class="${m === pk.v ? 'sel' : ''} ${m === now ? 'now' : ''} ${has.has(m) ? 'has' : ''}" data-pk="month" data-v="${m}">${cap(monthShort(m))}</button>`).join('')}</div>
       <div class="pk-foot">${c.clear ? '<button class="btn btn-ghost" data-pk="clear">Nessuno</button>' : ''}${pk.id === 'hdrMonth' ? '<button class="btn btn-lime" data-pk="thismonth">Mese corrente</button>' : ''}<button class="btn btn-ghost" data-pk="close">Annulla</button></div>`;
@@ -1557,6 +1619,8 @@ function renderPicker() {
     const col = (name, arr, cur) => `<div class="pk-wheel" data-wheel="${name}">${arr.map(x => `<button data-pk="wheel" data-v="${x}" class="${x === cur ? 'cur' : ''}">${pad(x)}</button>`).join('')}</div>`;
     el.innerHTML = head(`${pad(H)}:${pad(M)}`) + `<div class="pk-wheels"><div class="pk-band"></div>${col('h', Array.from({ length: 24 }, (_, i) => i), H)}<span class="pk-colon">:</span>${col('m', mins, M)}</div>
       <div class="pk-foot"><button class="btn btn-ghost" data-pk="close">Annulla</button><button class="btn btn-lime" data-pk="ok">Conferma</button></div>`;
+    if (pk.id === 'd-end' && draft) $('#pkBig').insertAdjacentHTML('afterend', '<div class="pk-nd" id="pkNd"></div>');
+    pkNextDay();
     el.querySelectorAll('.pk-wheel').forEach(w => {
       const items = [...w.children], cur = items.findIndex(b => b.classList.contains('cur'));
       requestAnimationFrame(() => { w.scrollTop = cur * 50; });
@@ -1564,7 +1628,7 @@ function renderPicker() {
         const i = Math.max(0, Math.min(items.length - 1, Math.round(w.scrollTop / 50)));
         items.forEach((b, j) => b.classList.toggle('cur', j === i));
         pk[w.dataset.wheel] = +items[i].dataset.v;
-        $('#pkBig').textContent = `${pad(pk.h)}:${pad(pk.m)}`;
+        $('#pkBig').textContent = `${pad(pk.h)}:${pad(pk.m)}`; pkNextDay();
       }, { passive: true });
     });
   }
@@ -1604,31 +1668,36 @@ function openSheet(s) {
   let date = todayStr(); if (ymOf(date) !== ui.month) date = `${ui.month}-01`;
   draft = s ? { ...s } : { id: uid(), date, start: '19:00', end: '23:30', breakMin: 0, type: autoType(date), hours: 0, nightHours: 0, tips: 0, note: '' };
   draft._typeManual = !isNew && draft.type !== autoType(draft.date); draft._new = isNew;
+  const wasPlan = !!s && isPlan(s), confirm = wasPlan && planDue(s);
+  draft._plan = isNew ? date > todayStr() : wasPlan && !confirm; draft._planManual = false; draft._confirm = confirm;
   $('#sheet').innerHTML = `
     <div class="grab"></div>
-    <div class="sheet-h"><h2 id="sheetTitle"><span>${isNew ? 'Nuovo' : 'Modifica'}</span><br>turno</h2><button class="circ" data-act="close" aria-label="Chiudi">${IC.x}</button></div>
+    <div class="sheet-h"><h2 id="sheetTitle"><span>${confirm ? 'Conferma' : isNew ? 'Nuovo' : 'Modifica'}</span><br>turno</h2><button class="circ" data-act="close" aria-label="Chiudi">${IC.x}</button></div>
     <div class="preview" id="pv"></div>
     <div class="field"><label for="d-date-btn">Data</label>${pickField('date', 'd-date', draft.date, { title: 'Data del turno' })}</div>
     <div class="holiday-note" id="holNote"></div>
+    ${confirm ? `<p class="cf-note">${ico('clock')}<span>Orari previsti già inseriti: correggili con quelli reali di Fluida e conferma.</span></p>` : ''}
+    <div class="field"><span class="flabel">Stato</span><div class="seg" id="d-plan"><button data-act="dplan" data-p="0" class="${draft._plan ? '' : 'on'}">Fatto · conta</button><button data-act="dplan" data-p="1" class="${draft._plan ? 'on' : ''}">In programma</button></div></div>
     <span class="flabel">Orari rapidi</span>
     <div class="chips">${recentPresets().map(p => `<button class="chip num" data-act="preset" data-s="${p.start}" data-e="${p.end}" data-b="${p.breakMin || 0}">${p.l ? p.l + ' · ' : ''}${p.start}–${p.end}</button>`).join('')}</div>
     <div class="grid2">
       <div class="field"><label for="d-start-btn">Inizio</label>${pickField('time', 'd-start', draft.start || '', { title: 'Inizio turno' })}</div>
-      <div class="field"><label for="d-end-btn">Fine</label>${pickField('time', 'd-end', draft.end || '', { title: 'Fine turno' })}</div>
+      <div class="field"><label for="d-end-btn">Fine <span class="nd" id="endNd">giorno dopo</span></label>${pickField('time', 'd-end', draft.end || '', { title: 'Fine turno' })}</div>
     </div>
+    <p class="ovn" id="ovnNote"></p>
     <div class="field"><span class="flabel">Pausa non retribuita</span><div class="seg" id="d-break">${[0, 15, 30, 60].map(m => `<button data-act="brk" data-m="${m}" class="${(draft.breakMin || 0) === m ? 'on' : ''}">${m ? m + ' min' : 'Nessuna'}</button>`).join('')}</div></div>
     <div class="field"><span class="flabel">Tipo di turno</span><div class="seg types" id="d-type">${Object.entries(TYPES).map(([k, t]) => `<button data-act="dtype" data-t="${k}" class="${draft.type === k ? 'on' : ''}">${t.label}</button>`).join('')}</div></div>
     <div class="grid2">
-      <div class="field"><label for="d-tips">Mance</label><div class="input-wrap"><input class="input num" id="d-tips" inputmode="decimal" placeholder="0" value="${draft.tips ? String(draft.tips).replace('.', ',') : ''}"><span class="unit">€</span></div></div>
+      <div class="field" id="f-tips"><label for="d-tips">Mance</label><div class="input-wrap"><input class="input num" id="d-tips" inputmode="decimal" placeholder="0" value="${draft.tips ? String(draft.tips).replace('.', ',') : ''}"><span class="unit">€</span></div></div>
       <div class="field"><label for="d-note">Nota</label><input class="input" id="d-note" maxlength="60" placeholder="es. evento" value="${esc(draft.note || '')}"></div>
     </div>
     <div class="sheet-actions">
-      ${isNew ? '' : `<button class="del" data-act="delete" aria-label="Elimina turno">${ico('trash')}</button>`}
-      <button class="btn btn-lime" data-act="save">${isNew ? 'Aggiungi turno' : 'Salva modifiche'}</button>
+      ${confirm ? '<button class="btn btn-ghost nf" data-act="notdone">Non l\'ho fatto</button>' : isNew ? '' : `<button class="del" data-act="delete" aria-label="Elimina turno">${ico('trash')}</button>`}
+      <button class="btn btn-lime" data-act="save" id="saveBtn"></button>
     </div>`;
   ['d-date', 'd-start', 'd-end', 'd-tips', 'd-note'].forEach(id => $('#' + id).addEventListener('input', readDraft));
   fillPicks($('#sheet')); segThumbs($('#sheet'));
-  updatePreview();
+  syncPlanUI(); updatePreview();
   $('#scrim').classList.add('on'); $('#sheet').classList.add('on'); $('#sheet').scrollTop = 0; setModal();
 }
 let lockY = null;
@@ -1653,18 +1722,34 @@ function closeSheet() { $('#scrim').classList.remove('on'); $('#sheet').classLis
 function readDraft() {
   if (!draft) return;
   const d = $('#d-date').value;
-  if (d && d !== draft.date) { draft.date = d; if (!draft._typeManual) { draft.type = autoType(d); syncSeg('#d-type', 't', draft.type); } }
+  if (d && d !== draft.date) { draft.date = d; if (!draft._typeManual) { draft.type = autoType(d); syncSeg('#d-type', 't', draft.type); } if (draft._new && !draft._planManual) { draft._plan = d > todayStr(); syncPlanUI(); } }
   draft.start = okTime($('#d-start').value); draft.end = okTime($('#d-end').value);
   if (draft.start && draft.end) draft.hours = 0;
   draft.tips = Math.max(0, parseNum($('#d-tips').value)); draft.note = $('#d-note').value.trim();
   updatePreview();
 }
+function syncPlanUI() {
+  if (!draft) return;
+  syncSeg('#d-plan', 'p', draft._plan ? '1' : '0');
+  const ft = $('#f-tips'); if (ft) { ft.style.display = draft._plan ? 'none' : ''; const nt = ft.nextElementSibling; if (nt) nt.style.gridColumn = draft._plan ? '1 / -1' : ''; }
+  const b = $('#saveBtn'); if (b) b.textContent = draft._confirm && !draft._plan ? 'Conferma orari' : draft._new ? (draft._plan ? 'Aggiungi in programma' : 'Aggiungi turno') : 'Salva modifiche';
+}
 function syncSeg(sel, attr, val) { document.querySelectorAll(`${sel} button`).forEach(b => b.classList.toggle('on', b.dataset[attr] === String(val))); const s = $(sel); if (s) segThumbs(s.parentElement || document); }
 function updatePreview() {
   if (!draft || !draft.date) return;
+  { const on = overnight(draft), n = $('#ovnNote'), b = $('#endNd');
+    if (b) b.classList.toggle('on', on);
+    if (n) { n.classList.toggle('on', on); n.innerHTML = on ? `${ico('clock')}<span>Finisci <b>${nextDayLbl(draft.date)}</b> alle ${draft.end}: tutte le ore contano su <b>${dayLbl(draft.date)}</b>, il giorno in cui hai iniziato.</span>` : ''; } }
   const m = marginal(draft, draft._new ? '__none' : draft.id), hol = holidayName(draft.date), sun = parseDate(draft.date).getDay() === 0;
   $('#holNote').innerHTML = hol ? `${ico('calendar-star')}${hol}: festività nazionale` : sun && draft.type !== 'domenica' ? ico('calendar-star') + 'È domenica' : '';
   $('#holNote').style.display = $('#holNote').innerHTML ? '' : 'none';
+  $('#pv').classList.toggle('plan', !!draft._plan);
+  if (draft._plan) {
+    const hh = shiftHours(draft);
+    $('#pv').innerHTML = `<div><div class="pv-l">In programma</div><div class="pv-v num">${hFmt(hh.hours)}</div><div class="pv-l">Promemoria · non entra nei calcoli</div></div>
+      <div class="pv-r num">${draft.start && draft.end ? `<b>${draft.start} – ${draft.end}</b>` : ''}${hh.night ? `<br>${hFmt(hh.night)} nott.` : ''}</div>`;
+    return;
+  }
   $('#pv').innerHTML = `<div><div class="pv-l">Questo turno vale</div><div class="pv-v num">${moneyHTML(m.netto)}</div><div class="pv-l">netti${m.tips ? ` · +${eur(m.tips)} mance` : ''}</div></div>
     <div class="pv-r num"><b>${hFmt(m.hours)}</b>${m.night ? ` · ${hFmt(m.night)} nott.` : ''}<br>Lordo <b>${eur(m.lordo)}</b><br>${m.hours ? `<b>${eur((m.netto + m.tips) / m.hours)}</b>/ora` : ''}</div>`;
 }
@@ -1674,12 +1759,16 @@ function saveDraft() {
   if (!draft.date) return toast('Scegli una data');
   if (hours <= 0) return toast('Controlla gli orari del turno');
   if (hours > 16) return toast('Un turno non può superare 16 ore');
-  const clean = normShift(draft); clean.id = draft.id;
+  const clean = normShift(draft), oldId = draft.id;
   if (draft.start && draft.end) { clean.hours = 0; clean.nightHours = 0; }
-  const i = shifts.findIndex(s => s.id === draft.id); if (i >= 0) shifts[i] = clean; else shifts.push(clean);
-  const isNew = draft._new; saveShifts(); invalidate();
+  if (draft._plan) { clean.id = isPlan(draft) ? oldId : 'plan-' + uid(); clean.tips = 0; }
+  else clean.id = isPlan(draft) ? uid() : oldId;
+  const list = allShifts(), i = list.findIndex(s => s.id === oldId);
+  if (i >= 0) list[i] = clean; else list.push(clean);
+  setAllShifts(list);
+  const isNew = draft._new, conf = draft._confirm && !draft._plan, pl = draft._plan; saveShifts(); invalidate();
   ui.month = ymOf(clean.date); closeSheet(); render();
-  toast(isNew ? 'Turno aggiunto' : 'Turno aggiornato');
+  toast(conf ? 'Turno confermato: ora conta nei calcoli' : pl ? (isNew ? 'Aggiunto ai turni in programma' : 'Turno in programma aggiornato') : isNew ? 'Turno aggiunto' : 'Turno aggiornato');
 }
 
 /* ===================== Dialog & toast ===================== */
@@ -1830,7 +1919,7 @@ async function pull() {
   }
   const st = await sbFetch('/rest/v1/settings?select=data,updated_at', { auth: true });
   let changed = false, since = m.since;
-  const byId = new Map(shifts.map(s => [s.id, s]));
+  const byId = new Map(allShifts().map(s => [s.id, s]));
   for (const r of rows) {
     if (!since || r.updated_at > since) since = r.updated_at;
     const loc = byId.get(r.id);
@@ -1852,13 +1941,13 @@ async function pull() {
   }
   m.since = since; saveMeta(m);
   if (changed) {
-    shifts = [...byId.values()]; localStorage.setItem(K_SH, JSON.stringify(shifts)); invalidate();
+    setAllShifts([...byId.values()]); localStorage.setItem(K_SH, JSON.stringify(allShifts())); invalidate();
     if (!$('#sheet').classList.contains('on') && !$('#picker').classList.contains('on') && !(document.activeElement && document.activeElement.matches('input'))) render();
   }
 }
 async function push() {
   const m = syncMeta(), up = [], cur = new Set();
-  for (const s of shifts) { const k = shKey(s); cur.add(s.id); if (m.sh[s.id] !== k) up.push({ id: s.id, data: s, deleted: false, k }); }
+  for (const s of allShifts()) { const k = shKey(s); cur.add(s.id); if (m.sh[s.id] !== k) up.push({ id: s.id, data: s, deleted: false, k }); }
   for (const id of Object.keys(m.sh)) if (!cur.has(id)) up.push({ id, data: {}, deleted: true, k: null });
   for (let i = 0; i < up.length; i += 500) {
     const part = up.slice(i, i + 500);
@@ -1890,9 +1979,9 @@ async function afterLogin(msg) {
   const old = readJSON(K_SYNC), fresh = !old || old.uid !== session.user.id;
   if (fresh) {
     localStorage.removeItem(K_SYNC);
-    if (shifts.length) {
-      const keep = await confirmBox(`Hai ${shifts.length} turn${shifts.length === 1 ? 'o' : 'i'} su questo telefono`, 'Vuoi aggiungerli al tuo account? Se scegli "No", su questo telefono vedrai solo quelli salvati nel cloud.', 'Aggiungi', false, 'No');
-      if (!keep) { shifts = []; localStorage.setItem(K_SH, '[]'); invalidate(); }
+    if (allShifts().length) {
+      const keep = await confirmBox(`Hai ${allShifts().length} turn${allShifts().length === 1 ? 'o' : 'i'} su questo telefono`, 'Vuoi aggiungerli al tuo account? Se scegli "No", su questo telefono vedrai solo quelli salvati nel cloud.', 'Aggiungi', false, 'No');
+      if (!keep) { shifts = []; plans = []; localStorage.setItem(K_SH, '[]'); invalidate(); }
     }
   }
   const nm = session.user.user_metadata && session.user.user_metadata.name;
@@ -1908,7 +1997,7 @@ async function logout() {
   if (cloud.state !== 'ok' && !(await confirmBox('Modifiche non salvate', 'Alcune modifiche non sono ancora arrivate nel cloud (sei offline?). Se esci ora andranno perse.', 'Esci comunque'))) return;
   await authApi.signOut();
   setSession(null); localStorage.removeItem(K_SYNC); setCloud('idle');
-  shifts = []; settings = { ...DEFAULTS }; localStorage.setItem(K_SH, '[]'); localStorage.setItem(K_SET, JSON.stringify(settings)); invalidate();
+  shifts = []; plans = []; settings = { ...DEFAULTS }; localStorage.setItem(K_SH, '[]'); localStorage.setItem(K_SET, JSON.stringify(settings)); invalidate();
   render(); toast('Sei uscito');
 }
 
@@ -2112,13 +2201,17 @@ document.addEventListener('click', async e => {
     case 'week': selectWeek(+el.dataset.i); break;
     case 'photo': $('#photoFile').click(); break;
     case 'photo-del': localStorage.removeItem(K_AV); renderProfile(); toast('Foto rimossa'); break;
-    case 'edit': openSheet(shifts.find(s => s.id === el.dataset.id)); break;
+    case 'edit': openSheet(allShifts().find(s => s.id === el.dataset.id)); break;
+    case 'dplan': draft._plan = el.dataset.p === '1'; draft._planManual = true; syncPlanUI(); updatePreview(); break;
+    case 'notdone':
+      if (await confirmBox('Non hai fatto questo turno?', 'Verrà tolto dai turni in programma.', 'Togli')) { setAllShifts(allShifts().filter(s => s.id !== draft.id)); saveShifts(); closeSheet(); render(); toast('Turno tolto'); }
+      break;
     case 'close': closeSheet(); break;
     case 'month': setMonth(addMonths(ui.month, +el.dataset.d)); break;
     case 'pick-month': setMonth(el.dataset.ym); break;
     case 'range': ui.range = el.dataset.r; saveUI(); render(); break;
     case 'day': {
-      const ds = el.dataset.date, ex = shiftsOf(ui.month).filter(s => s.date === ds);
+      const ds = el.dataset.date, ex = allShifts().filter(s => s.date === ds);
       if (ex.length) openSheet(ex[0]); else { openSheet(null); setPick('d-date', ds); }
       break;
     }
@@ -2130,7 +2223,7 @@ document.addEventListener('click', async e => {
     case 'dtype': draft.type = el.dataset.t; draft._typeManual = true; syncSeg('#d-type', 't', draft.type); updatePreview(); break;
     case 'save': saveDraft(); break;
     case 'delete':
-      if (await confirmBox('Eliminare il turno?', 'Il turno verrà rimosso definitivamente.', 'Elimina')) { shifts = shifts.filter(s => s.id !== draft.id); saveShifts(); invalidate(); closeSheet(); render(); toast('Turno eliminato'); }
+      if (await confirmBox('Eliminare il turno?', 'Il turno verrà rimosso definitivamente.', 'Elimina')) { setAllShifts(allShifts().filter(s => s.id !== draft.id)); saveShifts(); invalidate(); closeSheet(); render(); toast('Turno eliminato'); }
       break;
     case 'set-seg': {
       const k = el.dataset.key; settings[k] = el.dataset.v; saveSettings(); invalidate();
@@ -2140,7 +2233,7 @@ document.addEventListener('click', async e => {
     }
     case 'toggle': settings[el.dataset.key] = !settings[el.dataset.key]; saveSettings(); invalidate(); el.classList.toggle('on', settings[el.dataset.key]); el.setAttribute('aria-checked', settings[el.dataset.key]); break;
     case 'export': {
-      const blob = new Blob([JSON.stringify({ app: 'Turnix', version: 1, exportedAt: new Date().toISOString(), settings, shifts }, null, 2)], { type: 'application/json' });
+      const blob = new Blob([JSON.stringify({ app: 'Turnix', version: 1, exportedAt: new Date().toISOString(), settings, shifts: allShifts() }, null, 2)], { type: 'application/json' });
       const u = URL.createObjectURL(blob), l = document.createElement('a');
       l.href = u; l.download = `turnix-backup-${todayStr()}.json`; l.click(); setTimeout(() => URL.revokeObjectURL(u), 1000);
       toast('Backup esportato'); break;
@@ -2150,7 +2243,7 @@ document.addEventListener('click', async e => {
       if (await confirmBox('Ripristinare i parametri?', 'Torneranno i valori del cedolino originale. I turni non vengono toccati.', 'Ripristina', false)) { settings = { ...DEFAULTS, name: settings.name }; saveSettings(); invalidate(); renderSettings(); toast('Parametri ripristinati'); }
       break;
     case 'wipe':
-      if (await confirmBox('Cancellare tutti i turni?', `Verranno eliminati ${shifts.length} turni. Ti consiglio di esportare prima un backup.`, 'Cancella tutto')) { shifts = []; saveShifts(); invalidate(); render(); toast('Turni cancellati'); }
+      if (await confirmBox('Cancellare tutti i turni?', `Verranno eliminati ${allShifts().length} turni. Ti consiglio di esportare prima un backup.`, 'Cancella tutto')) { shifts = []; plans = []; saveShifts(); invalidate(); render(); toast('Turni cancellati'); }
       break;
   }
 });
@@ -2177,7 +2270,7 @@ $('#importFile').addEventListener('change', async e => {
     if (!Array.isArray(list)) throw new Error();
     const norm = list.map(normShift).filter(Boolean);
     if (!(await confirmBox('Importare il backup?', `Contiene ${norm.length} turni. Sostituirà i dati attuali su questo dispositivo.`, 'Importa', false))) return;
-    shifts = norm;
+    setAllShifts(norm);
     if (data.settings) { const s = { ...DEFAULTS }; for (const k of Object.keys(DEFAULTS)) if (typeof data.settings[k] === typeof DEFAULTS[k]) s[k] = data.settings[k]; settings = s; saveSettings(); }
     saveShifts(); invalidate(); render(); toast('Backup importato');
   } catch { toast('File di backup non valido'); }

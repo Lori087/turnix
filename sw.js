@@ -1,5 +1,5 @@
 // Turnix service worker: rete prima, cache come riserva (funziona anche offline).
-const CACHE = 'turnix-v35';
+const CACHE = 'turnix-v36';
 const SHELL = ['./', './index.html', './manifest.webmanifest', './icon.svg', './icon-192.png', './icon-512.png', './apple-touch-icon.png', './favicon-32.png'];
 
 self.addEventListener('install', e => {
