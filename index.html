@@ -284,21 +284,6 @@ details[open] .chev{transform:rotate(180deg)}
 
 /* obiettivo (card rosa) */
 .gauge{display:block;width:100%;margin-top:6px}
-.tp .c-s{color:var(--ink);opacity:.6}
-.tp-row{margin-top:16px;padding-top:16px;border-top:1.5px solid rgba(13,13,13,.12);display:grid;grid-template-columns:1fr auto;gap:10px 12px;align-items:center;transition:opacity .25s,transform .25s}
-.tp-row.gone{opacity:0;transform:translateX(30px)}
-.tp-d{display:flex;flex-direction:column;gap:2px}
-.tp-d b{font-size:15.5px;font-weight:700}
-.tp-d span{font-size:13px;font-weight:600;opacity:.6}
-.tp-in{display:flex;gap:8px;align-items:center}
-.tp-in .input-wrap{width:104px}
-.tp-in .input{height:50px;padding:0 30px 0 16px;font-size:17px}
-.tp-in .unit{right:14px}
-.tp-ok{width:50px;height:50px;border-radius:50%;background:var(--ink);color:var(--lime);display:grid;place-items:center;flex:none;transition:transform .14s}
-.tp-ok:active{transform:scale(.92)}
-.tp-ok .ic{width:24px;height:24px}
-.tp-no{grid-column:1/-1;justify-self:start;font-size:13.5px;font-weight:700;text-decoration:underline;text-underline-offset:3px;opacity:.7;padding:2px 0}
-.tp-more{margin:14px 0 0;font-size:13px;font-weight:600;opacity:.6}
 .gl-msg{display:flex;align-items:center;justify-content:center;gap:8px;margin:6px auto 0;width:fit-content;background:rgba(13,13,13,.08);border-radius:99px;padding:10px 16px;font-size:14.5px;font-weight:600}
 .gl-msg.ok{background:var(--ink);color:var(--pink)}
 .gl-msg .ic{width:18px;height:18px}
@@ -1100,54 +1085,6 @@ function cumChart(ym) {
   return `<svg class="spark" viewBox="0 0 ${W} ${H}" role="img" aria-label="Guadagno cumulato nel mese">${g}</svg>`;
 }
 
-/* promemoria mance: turni finiti negli ultimi 14 giorni senza mance e non ancora "chiusi".
-   Chiave locale separata: non tocca turni né parametri. */
-const K_TIPASK = 'turnix_tips_asked';
-let tipAsked = (() => { try { const v = JSON.parse(localStorage.getItem(K_TIPASK)); return Array.isArray(v) ? v : []; } catch { return []; } })();
-const markTipAsked = id => { if (!tipAsked.includes(id)) { tipAsked.push(id); tipAsked = tipAsked.slice(-300); localStorage.setItem(K_TIPASK, JSON.stringify(tipAsked)); } };
-function shiftEnded(s) {
-  const today = todayStr();
-  if (s.date < today) return true;
-  if (s.date > today || !s.start || !s.end || s.end <= s.start) return false;
-  const n = new Date(); return `${pad(n.getHours())}:${pad(n.getMinutes())}` >= s.end;
-}
-function tipsPending() {
-  const lim = new Date(); lim.setDate(lim.getDate() - 14);
-  const from = `${lim.getFullYear()}-${pad(lim.getMonth() + 1)}-${pad(lim.getDate())}`;
-  return shifts.filter(s => !s.tips && s.date >= from && !tipAsked.includes(s.id) && shiftEnded(s))
-    .sort((a, b) => (b.date + b.start).localeCompare(a.date + a.start));
-}
-function tipsCard() {
-  const p = tipsPending(); if (!p.length) return '';
-  const rows = p.slice(0, 3).map(s => {
-    const d = parseDate(s.date), when = s.start && s.end ? `${s.start} – ${s.end}` : hFmt(shiftHours(s).hours);
-    return `<div class="tp-row" data-id="${s.id}">
-      <div class="tp-d"><b>${cap(wdShort(s.date))} ${d.getDate()} ${monthShort(ymOf(s.date))}</b><span class="num">${when}</span></div>
-      <div class="tp-in"><div class="input-wrap"><input class="input num" inputmode="decimal" placeholder="0" aria-label="Mance di ${cap(wdShort(s.date))} ${d.getDate()}" data-tip="${s.id}"><span class="unit">€</span></div>
-        <button class="tp-ok" data-act="tip-save" data-id="${s.id}" aria-label="Salva mance">${ico('check-circle')}</button></div>
-      <button class="tp-no" data-act="tip-skip" data-id="${s.id}">Nessuna mancia</button>
-    </div>`;
-  }).join('');
-  return `<section class="card c-lime tp" id="tipsCard">
-    <div class="c-h"><div><h3 class="c-t">Com'è andata con le mance?</h3><p class="c-s">${p.length === 1 ? 'Un turno finito' : p.length + ' turni finiti'} senza mance segnate</p></div><span class="circ wh">${ico('hand-coins')}</span></div>
-    ${rows}
-    ${p.length > 3 ? `<p class="tp-more">e altri ${p.length - 3}: compariranno qui appena segni questi</p>` : ''}
-  </section>`;
-}
-function saveTip(id) {
-  const inp = document.querySelector(`[data-tip="${id}"]`), v = Math.max(0, parseNum(inp ? inp.value : ''));
-  if (!v) { if (inp) inp.focus(); return toast('Scrivi quanto hai preso, oppure tocca "Nessuna mancia"'); }
-  const i = shifts.findIndex(s => s.id === id); if (i < 0) return;
-  shifts[i] = { ...shifts[i], tips: Math.round(v * 100) / 100 }; markTipAsked(id); saveShifts(); invalidate();
-  closeTipRow(id, `Mance salvate: +${eur(v)}`);
-}
-function closeTipRow(id, msg) {
-  const row = document.querySelector(`.tp-row[data-id="${id}"]`);
-  toast(msg);
-  if (!row) return render();
-  row.classList.add('gone'); setTimeout(render, 260);
-}
-document.addEventListener('keydown', e => { const t = e.target; if (e.key === 'Enter' && t.matches && t.matches('[data-tip]')) { e.preventDefault(); saveTip(t.dataset.tip); } });
 function renderHome() {
   const ym = ui.month, r = stats(ym), list = shiftsOf(ym), state = monthState(ym), today = todayStr();
   const done = computeMonth(list.filter(s => s.date <= today), ym);
@@ -1160,7 +1097,6 @@ function renderHome() {
   $('#v-home').innerHTML = `
     <h1 class="title">${nm ? `<span>${greeting()}</span><br>${esc(nm)}!` : `<span>${greeting()},</span><br>ecco ${monthName(ym).toLowerCase()}`}</h1>
 
-    ${tipsCard()}
     <section class="card c-grad" id="weekCard">${weekCard(ym)}</section>
 
     <section class="card c-green">
@@ -2177,8 +2113,6 @@ document.addEventListener('click', async e => {
     case 'photo': $('#photoFile').click(); break;
     case 'photo-del': localStorage.removeItem(K_AV); renderProfile(); toast('Foto rimossa'); break;
     case 'edit': openSheet(shifts.find(s => s.id === el.dataset.id)); break;
-    case 'tip-save': saveTip(el.dataset.id); break;
-    case 'tip-skip': markTipAsked(el.dataset.id); closeTipRow(el.dataset.id, 'Ok, nessuna mancia'); break;
     case 'close': closeSheet(); break;
     case 'month': setMonth(addMonths(ui.month, +el.dataset.d)); break;
     case 'pick-month': setMonth(el.dataset.ym); break;
