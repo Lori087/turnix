@@ -215,8 +215,11 @@ button{cursor:pointer;border:0;background:none;padding:0}
 /* cedolino (pannello bianco) */
 details.card>summary{list-style:none;cursor:pointer;display:flex;justify-content:space-between;align-items:center;gap:12px}
 details.card>summary::-webkit-details-marker{display:none}
-.chev{width:20px;height:20px;transition:transform .3s var(--ease)}
-details[open] .chev{transform:rotate(180deg)}
+.chev{width:20px;height:20px;transition:transform .45s var(--ease-sheet)}
+details[open]:not(.closing) .chev{transform:rotate(180deg)}
+details.card .pbody{overflow:hidden}
+details.card .pin{padding-top:12px}
+details.card>summary:active .c-t{opacity:.7}
 .prow{display:flex;justify-content:space-between;gap:12px;padding:10px 0;border-bottom:1px solid rgba(0,0,0,.08);font-size:14px;font-weight:500}
 .prow.sub{padding-left:12px;font-size:13px;opacity:.65}
 .prow.tot{font-weight:700;font-size:15.5px;border-bottom:1.5px solid var(--ink)}
@@ -1217,7 +1220,7 @@ function payslip(r) {
   const row = (l, v, cls = '') => `<div class="prow ${cls}"><span>${l}</span><b class="num">${v}</b></div>`;
   return `<details class="card c-white">
     <summary><div><h3 class="c-t">Cedolino stimato</h3><p class="c-s">Dal lordo al netto, voce per voce</p></div>${IC.chev}</summary>
-    <div style="margin-top:12px">
+    <div class="pbody"><div class="pin">
       ${row(`Paga base <small>(${n2(r.hours)} h × ${eur(st.hourly)})</small>`, eur(r.base))}
       ${r.extraSun ? row(`Magg. domenicale ${n2(st.sundayPct)}%`, eur(r.extraSun), 'sub') : ''}
       ${r.extraHol ? row(`Magg. festiva ${n2(st.holidayPct)}%`, eur(r.extraHol), 'sub') : ''}
@@ -1232,7 +1235,7 @@ function payslip(r) {
       ${row('Netto in busta', eur(r.netto), 'tot')}
       ${row('Mance', '+ ' + eur(r.tips))}
       ${row('Totale in tasca', `<span class="hl">${eur(r.total)}</span>`, 'tot')}
-    </div>
+    </div></div>
   </details>`;
 }
 
@@ -1633,6 +1636,27 @@ function renderPicker() {
     });
   }
 }
+/* apertura animata dei pannelli <details> (cedolino) */
+document.addEventListener('click', e => {
+  const sm = e.target.closest && e.target.closest('details.card>summary'); if (!sm) return;
+  const d = sm.parentElement, body = d.querySelector('.pbody'); if (!body) return;
+  e.preventDefault();
+  if (matchMedia('(prefers-reduced-motion: reduce)').matches) { d.open = !d.open; return; }
+  const from = d.open ? body.getBoundingClientRect().height : 0, closing = d.classList.contains('opening') || (d.open && !d.classList.contains('closing'));
+  if (body._a) body._a.cancel();
+  d.querySelectorAll('.prow').forEach(r => r.getAnimations().forEach(a => a.cancel()));
+  if (closing) {
+    d.classList.remove('opening'); d.classList.add('closing');
+    body._a = body.animate([{ height: from + 'px', opacity: 1 }, { height: '0px', opacity: 0 }], { duration: 320, easing: 'cubic-bezier(.32,.72,0,1)' });
+    body._a.onfinish = () => { d.open = false; d.classList.remove('closing'); body._a = null; };
+  } else {
+    d.classList.remove('closing'); d.classList.add('opening'); d.open = true;
+    const to = body.scrollHeight;
+    body._a = body.animate([{ height: from + 'px' }, { height: to + 'px' }], { duration: 520, easing: 'cubic-bezier(.32,.72,0,1)' });
+    body._a.onfinish = () => { d.classList.remove('opening'); body._a = null; };
+    d.querySelectorAll('.prow').forEach((r, i) => r.animate([{ opacity: 0, transform: 'translate3d(0,10px,0)' }, { opacity: 1, transform: 'none' }], { duration: 340, delay: 40 + i * 16, easing: 'cubic-bezier(.22,1,.36,1)', fill: 'backwards' }));
+  }
+}, true);
 document.addEventListener('click', e => {
   const opener = e.target.closest('[data-pick]');
   if (opener) { e.preventDefault(); openPicker(opener.dataset.pick); return; }
