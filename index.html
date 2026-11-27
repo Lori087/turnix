@@ -1851,7 +1851,33 @@ function go(view) {
   if (ui.view === view) { window.scrollTo({ top: 0, behavior: 'smooth' }); return; }
   ui.view = view; window.scrollTo({ top: 0 }); render();
 }
-const setMonth = to => { if (!to || to === ui.month) return; const d = Math.sign(to.localeCompare(ui.month)); ui.month = to; ui.cmpA = ui.cmpB = null; render(d); };
+/* posizione di lettura: quale scheda della vista è a ~1/3 dello schermo e quanto ci sei dentro.
+   Le chiavi usano id o classi + occorrenza, così la stessa scheda si ritrova anche se il mese ha sezioni in più o in meno. */
+const docTop = el => { let y = 0; for (let e = el; e; e = e.offsetParent) y += e.offsetTop; return y; };
+function viewAnchors() {
+  const av = $('#v-' + ui.view); if (!av) return [];
+  const seen = {};
+  return [...av.children].filter(c => c.offsetHeight).map(c => {
+    const k = c.id ? '#' + c.id : c.tagName + '.' + [...c.classList].filter(x => !/^(on|sel|open|opening|closing)$/.test(x)).sort().join('.');
+    seen[k] = (seen[k] || 0) + 1; return { el: c, key: k + '@' + seen[k] };
+  });
+}
+function readingPos() {
+  if (scrollY < 4) return null;
+  const line = scrollY + innerHeight * .3, list = viewAnchors();
+  const i = list.findIndex(a => docTop(a.el) + a.el.offsetHeight > line); if (i < 0) return null;
+  const a = list[i], top = docTop(a.el);
+  return { keys: list.slice(i).map(x => x.key).concat(list.slice(0, i).reverse().map(x => x.key)), off: line - top, frac: (line - top) / Math.max(1, a.el.offsetHeight), first: i };
+}
+function restorePos(p) {
+  if (!p) { scrollTo({ top: 0, behavior: 'instant' }); return; }
+  const list = viewAnchors(), map = Object.fromEntries(list.map(a => [a.key, a.el]));
+  const k = p.keys.find(x => map[x]), el = k && map[k]; if (!el) return;
+  const same = k === p.keys[0], h = el.offsetHeight;
+  const inside = same ? Math.min(p.off, h - 1) : 0;
+  scrollTo({ top: Math.max(0, docTop(el) + Math.max(0, inside) - innerHeight * .3), behavior: 'instant' });
+}
+const setMonth = to => { if (!to || to === ui.month) return; const d = Math.sign(to.localeCompare(ui.month)), pos = readingPos(), opened = viewAnchors().filter(x => x.el.tagName === 'DETAILS' && x.el.open && !x.el.classList.contains('closing')).map(x => x.key); ui.month = to; ui.cmpA = ui.cmpB = null; render(d); if (opened.length) viewAnchors().forEach(x => { if (opened.includes(x.key)) x.el.open = true; }); restorePos(pos); };
 
 /* ===================== CLOUD: accesso + sincronizzazione con Supabase (fetch diretto, nessuna libreria) =====================
    I dati restano prima di tutto sul telefono (localStorage): l'app funziona anche offline.
@@ -2371,7 +2397,7 @@ function commitSwipe(d) {
   setTimeout(() => { msw.style.transition = 'none'; msw.style.opacity = 0; msw.classList.remove('go'); }, 120);
   setTimeout(() => {
     if (v) { v.style.transition = 'none'; v.style.transform = ''; v.style.opacity = ''; }
-    scrollTo({ top: 0 }); setMonth(ym);
+    setMonth(ym);
   }, 520);
   setTimeout(() => mfl.classList.add('out'), 1180);
   setTimeout(() => { mfl.className = 'mfill'; swBusy = false; }, 1700);
